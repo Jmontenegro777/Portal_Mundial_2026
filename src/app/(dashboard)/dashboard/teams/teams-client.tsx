@@ -24,6 +24,7 @@ type Team = {
   flagUrl: string | null;
   confederation: string;
   coach: string | null;
+  groupId: string | null;
   group: { id: string; name: string } | null;
   _count: { players: number; homeMatches: number; awayMatches: number };
 };

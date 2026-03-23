@@ -56,14 +56,14 @@ async function main() {
     { name: "Estadio Cuauhtémoc", city: "Puebla", country: "Mexico", capacity: 51832, latitude: 19.0406, longitude: -98.2122 },
   ];
 
+  // Delete existing and recreate for idempotency
+  await prisma.stadium.deleteMany({});
+  await prisma.stadium.createMany({ data: stadiumsData });
+
+  const createdStadiums = await prisma.stadium.findMany();
   const stadiums: Record<string, string> = {};
-  for (const s of stadiumsData) {
-    const stadium = await prisma.stadium.upsert({
-      where: { name: s.name } as never,
-      update: {},
-      create: s as never,
-    });
-    stadiums[s.name] = stadium.id;
+  for (const s of createdStadiums) {
+    stadiums[s.name] = s.id;
   }
   console.log(`✅ ${stadiumsData.length} estadios creados`);
 
