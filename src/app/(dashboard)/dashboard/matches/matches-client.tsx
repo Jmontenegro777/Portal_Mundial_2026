@@ -22,10 +22,16 @@ type Match = {
   stage: string;
   status: string;
   scheduledAt: Date;
+  homeTeamId: string | null;
+  awayTeamId: string | null;
+  stadiumId: string;
   homeTeam: Team | null;
   awayTeam: Team | null;
   homeScore: number | null;
   awayScore: number | null;
+  awayScorePens: number | null;
+  homeScorePens: number | null;
+  attendance: number | null;
   stadium: Stadium;
   _count: { goals: number; cards: number };
 };
