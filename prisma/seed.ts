@@ -56,7 +56,10 @@ async function main() {
     { name: "Estadio Cuauhtémoc", city: "Puebla", country: "Mexico", capacity: 51832, latitude: 19.0406, longitude: -98.2122 },
   ];
 
-  // Delete existing and recreate for idempotency
+  // Delete existing and recreate for idempotency (orden respeta FK)
+  await prisma.goal.deleteMany({});
+  await prisma.card.deleteMany({});
+  await prisma.match.deleteMany({});
   await prisma.stadium.deleteMany({});
   await prisma.stadium.createMany({ data: stadiumsData });
 
@@ -223,44 +226,160 @@ async function main() {
   }
   console.log(`✅ ${playersData.length} jugadores creados`);
 
-  // ─── Partidos de muestra (Grupo A) ───────────────────────────────────────
-  const aztecaId = stadiums["Estadio Azteca"];
-  const metlifeId = stadiums["MetLife Stadium"];
+  // ─── Limpiar partidos anteriores (ya hecho arriba antes de stadiums) ─────
 
-  if (aztecaId && teamMap["USA"] && teamMap["MEX"]) {
-    await prisma.match.upsert({
-      where: { matchNumber: 1 },
-      update: {},
-      create: {
-        matchNumber: 1,
-        stage: "GROUP",
-        status: "SCHEDULED",
-        scheduledAt: new Date("2026-06-11T21:00:00Z"),
-        homeTeamId: teamMap["MEX"],
-        awayTeamId: teamMap["USA"],
-        stadiumId: aztecaId,
-        groupId: groups["A"],
+  // ─── Partidos con resultados ───────────────────────────────────────────────
+  const aztecaId   = stadiums["Estadio Azteca"];
+  const metlifeId  = stadiums["MetLife Stadium"];
+  const attId      = stadiums["AT&T Stadium"];
+  const sofiId     = stadiums["SoFi Stadium"];
+  const akronId    = stadiums["Estadio Akron"];
+  const bbvaId     = stadiums["Estadio BBVA"];
+  const levisId    = stadiums["Levi's Stadium"];
+  const roseBowlId = stadiums["Rose Bowl Stadium"];
+
+  const matchesData = [
+    // ── Grupo A ──
+    { matchNumber: 1,  stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-11T21:00:00Z"), homeCode: "MEX", awayCode: "URU", homeScore: 2, awayScore: 1, stadiumId: aztecaId,   groupId: groups["A"], attendance: 85000 },
+    { matchNumber: 2,  stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-12T00:00:00Z"), homeCode: "USA", awayCode: "SEN", homeScore: 1, awayScore: 1, stadiumId: metlifeId,  groupId: groups["A"], attendance: 80000 },
+    { matchNumber: 3,  stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-15T21:00:00Z"), homeCode: "MEX", awayCode: "SEN", homeScore: 3, awayScore: 0, stadiumId: aztecaId,   groupId: groups["A"], attendance: 87523 },
+    { matchNumber: 4,  stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-16T00:00:00Z"), homeCode: "USA", awayCode: "URU", homeScore: 2, awayScore: 2, stadiumId: metlifeId,  groupId: groups["A"], attendance: 78000 },
+    { matchNumber: 5,  stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-19T21:00:00Z"), homeCode: "MEX", awayCode: "USA", homeScore: 1, awayScore: 3, stadiumId: aztecaId,   groupId: groups["A"], attendance: 87523 },
+    { matchNumber: 6,  stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-19T21:00:00Z"), homeCode: "URU", awayCode: "SEN", homeScore: 2, awayScore: 0, stadiumId: attId,      groupId: groups["A"], attendance: 70000 },
+    // ── Grupo B ──
+    { matchNumber: 7,  stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-12T18:00:00Z"), homeCode: "BRA", awayCode: "CRC", homeScore: 4, awayScore: 0, stadiumId: sofiId,     groupId: groups["B"], attendance: 68000 },
+    { matchNumber: 8,  stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-12T21:00:00Z"), homeCode: "ESP", awayCode: "JPN", homeScore: 2, awayScore: 1, stadiumId: akronId,    groupId: groups["B"], attendance: 45000 },
+    { matchNumber: 9,  stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-16T18:00:00Z"), homeCode: "BRA", awayCode: "JPN", homeScore: 3, awayScore: 1, stadiumId: sofiId,     groupId: groups["B"], attendance: 67000 },
+    { matchNumber: 10, stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-16T21:00:00Z"), homeCode: "ESP", awayCode: "CRC", homeScore: 5, awayScore: 0, stadiumId: akronId,    groupId: groups["B"], attendance: 49000 },
+    { matchNumber: 11, stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-20T21:00:00Z"), homeCode: "BRA", awayCode: "ESP", homeScore: 2, awayScore: 2, stadiumId: sofiId,     groupId: groups["B"], attendance: 70240 },
+    { matchNumber: 12, stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-20T21:00:00Z"), homeCode: "JPN", awayCode: "CRC", homeScore: 2, awayScore: 0, stadiumId: levisId,    groupId: groups["B"], attendance: 60000 },
+    // ── Grupo C ──
+    { matchNumber: 13, stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-13T18:00:00Z"), homeCode: "ARG", awayCode: "NGA", homeScore: 3, awayScore: 0, stadiumId: metlifeId,  groupId: groups["C"], attendance: 82000 },
+    { matchNumber: 14, stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-13T21:00:00Z"), homeCode: "FRA", awayCode: "AUS", homeScore: 2, awayScore: 0, stadiumId: attId,      groupId: groups["C"], attendance: 75000 },
+    { matchNumber: 15, stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-17T18:00:00Z"), homeCode: "ARG", awayCode: "AUS", homeScore: 2, awayScore: 1, stadiumId: metlifeId,  groupId: groups["C"], attendance: 80000 },
+    { matchNumber: 16, stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-17T21:00:00Z"), homeCode: "FRA", awayCode: "NGA", homeScore: 1, awayScore: 0, stadiumId: attId,      groupId: groups["C"], attendance: 72000 },
+    { matchNumber: 17, stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-21T21:00:00Z"), homeCode: "ARG", awayCode: "FRA", homeScore: 2, awayScore: 1, stadiumId: roseBowlId, groupId: groups["C"], attendance: 92000 },
+    { matchNumber: 18, stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-21T21:00:00Z"), homeCode: "AUS", awayCode: "NGA", homeScore: 1, awayScore: 1, stadiumId: bbvaId,     groupId: groups["C"], attendance: 48000 },
+    // ── Grupo D ──
+    { matchNumber: 19, stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-14T18:00:00Z"), homeCode: "GER", awayCode: "MAR", homeScore: 1, awayScore: 0, stadiumId: levisId,    groupId: groups["D"], attendance: 65000 },
+    { matchNumber: 20, stage: "GROUP", status: "FINISHED", scheduledAt: new Date("2026-06-14T21:00:00Z"), homeCode: "POR", awayCode: "COL", homeScore: 2, awayScore: 1, stadiumId: bbvaId,     groupId: groups["D"], attendance: 50000 },
+    // Próximos programados
+    { matchNumber: 21, stage: "GROUP", status: "SCHEDULED", scheduledAt: new Date("2026-06-18T18:00:00Z"), homeCode: "GER", awayCode: "COL", homeScore: null, awayScore: null, stadiumId: levisId, groupId: groups["D"], attendance: null },
+    { matchNumber: 22, stage: "GROUP", status: "SCHEDULED", scheduledAt: new Date("2026-06-18T21:00:00Z"), homeCode: "POR", awayCode: "MAR", homeScore: null, awayScore: null, stadiumId: bbvaId,  groupId: groups["D"], attendance: null },
+    // Octavos de ejemplo
+    { matchNumber: 65, stage: "ROUND_OF_16", status: "SCHEDULED", scheduledAt: new Date("2026-06-29T21:00:00Z"), homeCode: "ARG", awayCode: "USA", homeScore: null, awayScore: null, stadiumId: metlifeId, groupId: null, attendance: null },
+    { matchNumber: 66, stage: "ROUND_OF_16", status: "SCHEDULED", scheduledAt: new Date("2026-06-30T21:00:00Z"), homeCode: "BRA", awayCode: "GER", homeScore: null, awayScore: null, stadiumId: roseBowlId, groupId: null, attendance: null },
+  ];
+
+  const createdMatches: Record<number, string> = {};
+  for (const m of matchesData) {
+    const homeTeamId = m.homeCode ? teamMap[m.homeCode] : null;
+    const awayTeamId = m.awayCode ? teamMap[m.awayCode] : null;
+    if (!m.stadiumId) continue;
+    const match = await prisma.match.create({
+      data: {
+        matchNumber: m.matchNumber,
+        stage: m.stage as never,
+        status: m.status as never,
+        scheduledAt: m.scheduledAt,
+        homeTeamId: homeTeamId || null,
+        awayTeamId: awayTeamId || null,
+        homeScore: m.homeScore ?? null,
+        awayScore: m.awayScore ?? null,
+        stadiumId: m.stadiumId,
+        groupId: m.groupId || null,
+        attendance: m.attendance ?? null,
       },
     });
+    createdMatches[m.matchNumber] = match.id;
   }
+  console.log(`✅ ${matchesData.length} partidos creados`);
 
-  if (metlifeId && teamMap["ARG"] && teamMap["FRA"]) {
-    await prisma.match.upsert({
-      where: { matchNumber: 2 },
-      update: {},
-      create: {
-        matchNumber: 2,
-        stage: "GROUP",
-        status: "SCHEDULED",
-        scheduledAt: new Date("2026-06-12T18:00:00Z"),
-        homeTeamId: teamMap["ARG"],
-        awayTeamId: teamMap["FRA"],
-        stadiumId: metlifeId,
-        groupId: groups["C"],
-      },
+  // ─── Obtener jugadores por equipo para asignar goles ─────────────────────
+  const getPlayer = async (teamCode: string, lastName: string) => {
+    const teamId = teamMap[teamCode];
+    if (!teamId) return null;
+    return prisma.player.findFirst({ where: { teamId, lastName: { contains: lastName } } });
+  };
+
+  // ─── Goles representativos ────────────────────────────────────────────────
+  const goalsData = [
+    // Partido 1: MEX 2-1 URU
+    { matchNum: 1, teamCode: "MEX", lastName: "Rodríguez", minute: 23, isPenalty: false },
+    { matchNum: 1, teamCode: "MEX", lastName: "Rodríguez", minute: 67, isPenalty: true  },
+    { matchNum: 1, teamCode: "URU", lastName: "Bielsa",    minute: 55, isPenalty: false }, // placeholder
+    // Partido 7: BRA 4-0 CRC
+    { matchNum: 7, teamCode: "BRA", lastName: "Júnior",    minute: 12, isPenalty: false },
+    { matchNum: 7, teamCode: "BRA", lastName: "Goes",      minute: 34, isPenalty: false },
+    { matchNum: 7, teamCode: "BRA", lastName: "Júnior",    minute: 71, isPenalty: false },
+    { matchNum: 7, teamCode: "BRA", lastName: "Goes",      minute: 88, isPenalty: false },
+    // Partido 8: ESP 2-1 JPN
+    { matchNum: 8, teamCode: "ESP", lastName: "Yamal",     minute: 18, isPenalty: false },
+    { matchNum: 8, teamCode: "ESP", lastName: "Morata",    minute: 52, isPenalty: false },
+    // Partido 13: ARG 3-0 NGA
+    { matchNum: 13, teamCode: "ARG", lastName: "Messi",    minute: 10, isPenalty: false },
+    { matchNum: 13, teamCode: "ARG", lastName: "Álvarez",  minute: 33, isPenalty: false },
+    { matchNum: 13, teamCode: "ARG", lastName: "Messi",    minute: 80, isPenalty: true  },
+    // Partido 14: FRA 2-0 AUS
+    { matchNum: 14, teamCode: "FRA", lastName: "Mbappé",   minute: 27, isPenalty: false },
+    { matchNum: 14, teamCode: "FRA", lastName: "Giroud",   minute: 74, isPenalty: false },
+    // Partido 17: ARG 2-1 FRA
+    { matchNum: 17, teamCode: "ARG", lastName: "Messi",    minute: 35, isPenalty: false },
+    { matchNum: 17, teamCode: "FRA", lastName: "Mbappé",   minute: 59, isPenalty: true  },
+    { matchNum: 17, teamCode: "ARG", lastName: "Álvarez",  minute: 90, isPenalty: false },
+    // Partido 10: ESP 5-0 CRC
+    { matchNum: 10, teamCode: "ESP", lastName: "Yamal",    minute: 8,  isPenalty: false },
+    { matchNum: 10, teamCode: "ESP", lastName: "Morata",   minute: 21, isPenalty: false },
+    { matchNum: 10, teamCode: "ESP", lastName: "Yamal",    minute: 44, isPenalty: false },
+    { matchNum: 10, teamCode: "ESP", lastName: "Morata",   minute: 63, isPenalty: false },
+    { matchNum: 10, teamCode: "ESP", lastName: "Pedri",    minute: 78, isPenalty: false },
+    // Partido 9: BRA 3-1 JPN
+    { matchNum: 9, teamCode: "BRA", lastName: "Júnior",    minute: 15, isPenalty: false },
+    { matchNum: 9, teamCode: "BRA", lastName: "Goes",      minute: 50, isPenalty: false },
+    { matchNum: 9, teamCode: "BRA", lastName: "Júnior",    minute: 83, isPenalty: false },
+    // Partido 5: USA 3-1 MEX
+    { matchNum: 5, teamCode: "USA", lastName: "Pulisic",   minute: 22, isPenalty: false },
+    { matchNum: 5, teamCode: "MEX", lastName: "Rodríguez", minute: 41, isPenalty: false },
+    { matchNum: 5, teamCode: "USA", lastName: "Pulisic",   minute: 68, isPenalty: false },
+    { matchNum: 5, teamCode: "USA", lastName: "Pepi",      minute: 87, isPenalty: false },
+  ];
+
+  let goalsCreated = 0;
+  for (const g of goalsData) {
+    const matchId = createdMatches[g.matchNum];
+    if (!matchId) continue;
+    const player = await getPlayer(g.teamCode, g.lastName);
+    if (!player) continue;
+    await prisma.goal.create({
+      data: { matchId, playerId: player.id, minute: g.minute, isPenalty: g.isPenalty, isOwnGoal: false },
     });
+    goalsCreated++;
   }
-  console.log("✅ Partidos de muestra creados");
+  console.log(`✅ ${goalsCreated} goles registrados`);
+
+  // ─── Tarjetas representativas ─────────────────────────────────────────────
+  const cardsData = [
+    { matchNum: 1,  teamCode: "URU", lastName: "Bielsa",   minute: 45, type: "YELLOW" },
+    { matchNum: 5,  teamCode: "MEX", lastName: "Rodríguez",minute: 72, type: "YELLOW" },
+    { matchNum: 7,  teamCode: "BRA", lastName: "Casemiro", minute: 38, type: "YELLOW" },
+    { matchNum: 13, teamCode: "ARG", lastName: "Otamendi", minute: 55, type: "YELLOW" },
+    { matchNum: 14, teamCode: "FRA", lastName: "Varane",   minute: 80, type: "RED"    },
+    { matchNum: 17, teamCode: "ARG", lastName: "De Paul",  minute: 66, type: "YELLOW" },
+    { matchNum: 17, teamCode: "FRA", lastName: "Tchouaméni", minute: 89, type: "YELLOW" },
+  ];
+
+  let cardsCreated = 0;
+  for (const c of cardsData) {
+    const matchId = createdMatches[c.matchNum];
+    if (!matchId) continue;
+    const player = await getPlayer(c.teamCode, c.lastName);
+    if (!player) continue;
+    await prisma.card.create({
+      data: { matchId, playerId: player.id, minute: c.minute, type: c.type as never },
+    });
+    cardsCreated++;
+  }
+  console.log(`✅ ${cardsCreated} tarjetas registradas`);
 
   console.log("\n🎉 Seed completado exitosamente!");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");

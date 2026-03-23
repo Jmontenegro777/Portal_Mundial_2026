@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { teamSchema } from "@/lib/validations/team";
+import { requireRole } from "@/lib/api-auth";
 
 export async function GET(req: NextRequest) {
   try {
@@ -23,6 +24,8 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
+  const authError = await requireRole("EDITOR");
+  if (authError) return authError;
   try {
     const body = await req.json();
     const data = teamSchema.parse(body);
