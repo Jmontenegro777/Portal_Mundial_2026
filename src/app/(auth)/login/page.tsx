@@ -27,16 +27,21 @@ export default function LoginPage() {
 
   async function onSubmit(data: LoginForm) {
     setError("");
-    const result = await signIn("credentials", {
-      email: data.email,
-      password: data.password,
-      redirect: false,
-    });
-    if (result?.error) {
+    try {
+      const result = await signIn("credentials", {
+        email: data.email,
+        password: data.password,
+        redirect: false,
+        callbackUrl: "/dashboard",
+      });
+      if (!result || result.error) {
+        setError("Credenciales incorrectas. Intente nuevamente.");
+      } else {
+        router.push(result.url ?? "/dashboard");
+        router.refresh();
+      }
+    } catch {
       setError("Credenciales incorrectas. Intente nuevamente.");
-    } else {
-      router.push("/dashboard");
-      router.refresh();
     }
   }
 
