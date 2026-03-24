@@ -1,8 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { signIn } from "next-auth/react";
-import { useRouter } from "next/navigation";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -11,6 +9,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { loginAction } from "./actions";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -19,7 +18,6 @@ const loginSchema = z.object({
 type LoginForm = z.infer<typeof loginSchema>;
 
 export default function LoginPage() {
-  const router = useRouter();
   const [error, setError] = useState("");
   const { register, handleSubmit, formState: { errors, isSubmitting } } = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
@@ -27,21 +25,9 @@ export default function LoginPage() {
 
   async function onSubmit(data: LoginForm) {
     setError("");
-    try {
-      const result = await signIn("credentials", {
-        email: data.email,
-        password: data.password,
-        redirect: false,
-        callbackUrl: "/dashboard",
-      });
-      if (!result || result.error) {
-        setError("Credenciales incorrectas. Intente nuevamente.");
-      } else {
-        router.push(result.url ?? "/dashboard");
-        router.refresh();
-      }
-    } catch {
-      setError("Credenciales incorrectas. Intente nuevamente.");
+    const result = await loginAction(data.email, data.password);
+    if (result?.error) {
+      setError(result.error);
     }
   }
 
@@ -97,7 +83,7 @@ export default function LoginPage() {
               )}
 
               <Button type="submit" className="w-full" disabled={isSubmitting}>
-                {isSubmitting && <Loader2 className="h-4 w-4 animate-spin" />}
+                {isSubmitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
                 Iniciar Sesión
               </Button>
             </form>
